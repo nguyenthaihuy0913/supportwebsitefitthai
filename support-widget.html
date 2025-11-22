@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Support Widget</title>
+
+<style>
+#sw{position:fixed;bottom:100px;right:20px;display:flex;align-items:center;gap:10px;z-index:999999}
+#st{background:#001a33;color:#00bfff;padding:6px 12px;border-radius:20px;font-size:14px;white-space:nowrap;opacity:0;transform:translateX(10px);transition:.5s}
+#sb{background:linear-gradient(135deg,#001a33,#0066ff);color:#fff;padding:14px 20px;border-radius:50px;cursor:pointer;font-size:15px;box-shadow:0 0 15px rgba(0,102,255,.7);transition:.3s}
+#sb:hover{transform:scale(1.08)}
+#sm{position:fixed;bottom:160px;right:40px;display:flex;flex-direction:column;gap:10px;opacity:0;pointer-events:none;transition:.3s;transform:translateY(20px)}
+#sm.show{opacity:1;pointer-events:auto;transform:translateY(0)}
+.mc{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px;cursor:pointer;box-shadow:0 4px 10px rgba(0,0,0,.3);transition:.2s;background:linear-gradient(135deg,#007aff,#00bfff)}
+.mc:hover{transform:scale(1.1);box-shadow:0 6px 15px rgba(0,0,0,.5)}
+#tp,#chat-popup{position:fixed;right:20px;width:300px;background:#001a33;color:white;border-radius:15px;padding:20px;box-shadow:0 6px 25px rgba(0,0,0,.4);transform:translateY(50px) scale(.9);opacity:0;pointer-events:none;transition:.4s;z-index:999999}
+#tp.show,#chat-popup.show{transform:translateY(0) scale(1);opacity:1;pointer-events:auto}
+#tp input,#tp textarea,#chat-msg{width:100%;margin-bottom:6px;padding:6px;border-radius:6px;border:1px solid #335;background:#000000cc;color:white}
+#tp button,#chat-send{width:100%;padding:8px;border:none;border-radius:6px;background:linear-gradient(135deg,#007aff,#00bfff);color:black;cursor:pointer;transition:.2s}
+#tp button:hover,#chat-send:hover{transform:scale(1.05)}
+#tc,#chat-close{position:absolute;top:8px;right:12px;cursor:pointer;font-size:20px;color:#bcd;transition:.2s}
+#tc:hover,#chat-close:hover{color:#fff}
+#chat-popup{display:flex;flex-direction:column;bottom:160px}
+#chat-log{flex:1;overflow:auto;margin-bottom:6px;border:1px solid #335;padding:6px;border-radius:6px;background:#000000cc;font-size:14px}
+</style>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+</head>
+
+<body>
+
+<script>
+document.addEventListener("DOMContentLoaded",function(){
+
+// Inject widget
+document.body.insertAdjacentHTML("beforeend",
+`<div id="sw"><div id="st"></div><div id="sb">Hỗ trợ</div></div>
+<div id="sm"><div class="mc" id="mt">📩</div><div class="mc" id="mc">💬</div></div>
+<div id="tp"><div id="tc">×</div><h3>Gửi yêu cầu hỗ trợ</h3>
+<input id="tn" placeholder="Tên của bạn">
+<input id="te" placeholder="Email">
+<textarea id="tm" placeholder="Mô tả"></textarea>
+<button id="ts">Gửi</button>
+</div>
+<div id="chat-popup">
+<div id="chat-close">×</div>
+<div id="chat-log"></div>
+<input id="chat-msg" placeholder="Nhập tin nhắn">
+<button id="chat-send">Gửi</button>
+</div>`);
+
+// Message rotation
+const st=document.getElementById("st"),msgs=["Bạn cần hỗ trợ?","Bạn có câu hỏi gì không?","Nói chuyện với ChatBot"];let i=0;
+function next(){st.style.opacity=0;st.style.transform="translateX(10px)";
+setTimeout(()=>{st.textContent=msgs[i];st.style.opacity=1;st.style.transform="translateX(0)";i=(i+1)%msgs.length},500)}
+next();setInterval(next,8000);
+
+// Buttons
+const sb=document.getElementById("sb"),sm=document.getElementById("sm");
+let mt;
+function smOn(){clearTimeout(mt);sm.classList.add("show")}
+function smOff(){mt=setTimeout(()=>sm.classList.remove("show"),300)}
+sb.addEventListener("mouseenter",smOn);sb.addEventListener("mouseleave",smOff);
+sm.addEventListener("mouseenter",smOn);sm.addEventListener("mouseleave",smOff);
+
+// Ticket popup
+const tp=document.getElementById("tp");
+document.getElementById("mt").addEventListener("click",()=>tp.classList.add("show"));
+document.getElementById("tc").addEventListener("click",()=>tp.classList.remove("show"));
+
+// EmailJS
+emailjs.init("_nMoxKIiAhCByzI1H");
+
+document.getElementById("ts").addEventListener("click",()=>{
+  const n=tn.value.trim(),e=te.value.trim(),m=tm.value.trim();
+  if(!n||!e||!m){alert("Vui lòng nhập đầy đủ");return;}
+
+  emailjs.send("service_xa050fi","template_m5nljv7",{
+    user_name:n,
+    user_email:e,
+    support_message:m
+  }).then(()=>{
+    alert("Đã gửi!");
+    tp.classList.remove("show");
+    tn.value="";te.value="";tm.value="";
+  }).catch(()=>alert("Gửi thất bại!"));
+});
+
+// Chatbot
+const chat=document.getElementById("chat-popup");
+document.getElementById("mc").addEventListener("click",()=>chat.classList.add("show"));
+document.getElementById("chat-close").addEventListener("click",()=>{chat.classList.remove("show");chatLog.innerHTML=""});
+chatSend.addEventListener("click",async()=>{
+  const msg=chatMsg.value.trim();if(!msg)return;
+  chatLog.innerHTML+=`<div><b>You:</b> ${msg}</div>`;chatMsg.value="";
+  chatLog.innerHTML+=`<div>Loading...</div>`;
+  try{
+    const r=await fetch("https://openrouter.ai/api/v1/chat/completions",{
+      method:"POST",
+      headers:{
+        "Authorization":"Bearer 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",
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        model:"deepseek/deepseek-r1:free",
+        messages:[{role:"user",content:msg}]
+      })
+    });
+    const data=await r.json();
+    const reply=data.choices?.[0]?.message?.content||"Không nhận được phản hồi";
+    chatLog.innerHTML+=`<div><b>AI:</b> ${marked.parse(reply)}</div>`;
+    chatLog.scrollTop=chatLog.scrollHeight;
+  }catch(e){
+    chatLog.innerHTML+=`<div style="color:red"><b>AI:</b> Lỗi kết nối</div>`;
+  }
+});
+
+});
+</script>
+
+</body>
+</html>
