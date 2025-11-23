@@ -159,12 +159,12 @@ document.addEventListener("DOMContentLoaded", function() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          model: "mistralai/mistral-7b-instruct",
+          model: "tng/deepseek-r1t2-chimera",
           messages: [{ 
             role: "user", 
             content: msg 
           }],
-          max_tokens: 500
+          max_tokens: 1000
         })
       });
 
