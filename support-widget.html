@@ -1,3 +1,9 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Support Widget</title>
 <style>
 /* --- Floating Button & Tooltip --- */
 #sw {
@@ -39,7 +45,7 @@
 
 #tp input, #tp textarea, #chat-msg {
   width: 100%; margin-bottom: 8px; padding: 8px; border-radius: 6px; border: 1px solid #335; background: #000000cc; color: white;
-  transition: .2s;
+  transition: .2s; box-sizing: border-box;
 }
 #tp input:focus, #tp textarea:focus, #chat-msg:focus { border-color: #00bfff; outline: none; }
 
@@ -57,10 +63,15 @@
 #chat-popup { display: flex; flex-direction: column; bottom: 160px; }
 #chat-log { flex: 1; overflow-y: auto; margin-bottom: 8px; border: 1px solid #335; padding: 8px; border-radius: 6px; background: #000000cc; font-size: 14px; max-height: 250px; }
 
-/* --- Scroll animation --- */
 #chat-log::-webkit-scrollbar { width: 6px; }
 #chat-log::-webkit-scrollbar-thumb { background: #00bfff; border-radius: 3px; }
+
+.chat-msg { margin-bottom: 10px; padding: 5px; }
+.chat-msg b { color: #00bfff; }
+.error-msg { color: #ff6b6b; }
 </style>
+</head>
+<body>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script>
@@ -115,35 +126,81 @@ document.addEventListener("DOMContentLoaded", function() {
         chatSend = document.getElementById("chat-send"),
         mcBtn = document.getElementById("mc");
 
-  mcBtn.addEventListener("click", ()=>chatPopup.classList.add("show"));
-  chatClose.addEventListener("click", ()=>{ chatPopup.classList.remove("show"); chatLog.innerHTML=""; });
+  mcBtn.addEventListener("click", ()=>{
+    chatPopup.classList.add("show");
+    if(!chatLog.innerHTML){
+      chatLog.innerHTML = '<div class="chat-msg"><b>AI:</b> Xin chào! Tôi có thể giúp gì cho bạn?</div>';
+    }
+  });
+  
+  chatClose.addEventListener("click", ()=>{ 
+    chatPopup.classList.remove("show"); 
+  });
 
-  chatSend.addEventListener("click", async ()=>{
+  async function sendMessage(){
     const msg = chatInput.value.trim();
     if(!msg) return;
-    chatLog.innerHTML += `<div><b>You:</b> ${msg}</div>`;
-    chatLog.innerHTML += `<div>AI đang trả lời...</div>`;
+    
+    // Add user message
+    chatLog.innerHTML += `<div class="chat-msg"><b>Bạn:</b> ${msg}</div>`;
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'chat-msg';
+    loadingDiv.innerHTML = '<b>AI:</b> Đang suy nghĩ...';
+    chatLog.appendChild(loadingDiv);
     chatInput.value = "";
     chatLog.scrollTop = chatLog.scrollHeight;
 
     try{
       const res = await fetch("https://weathered-meadow-c4bc.thaihuyxbox.workers.dev/", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-      model: "mistral-7b-instruct",
-      messages: [{ role: "user", content: msg }]
-    })
-  });
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "mistralai/mistral-7b-instruct",
+          messages: [{ 
+            role: "user", 
+            content: msg 
+          }],
+          max_tokens: 500
+        })
+      });
 
-const data = await res.json();
-      const reply = data.choices?.[0]?.message?.content || "Không nhận được phản hồi";
-      chatLog.innerHTML += `<div><b>AI:</b> ${marked.parse(reply)}</div>`;
+      // Remove loading message
+      loadingDiv.remove();
+
+      if(!res.ok){
+        const errorText = await res.text();
+        console.error('Response error:', res.status, errorText);
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+
+      const data = await res.json();
+      console.log('API Response:', data);
+
+      const reply = data.choices?.[0]?.message?.content || data.error || "Không nhận được phản hồi";
+      
+      if(data.error){
+        chatLog.innerHTML += `<div class="chat-msg error-msg"><b>AI:</b> Lỗi: ${reply}</div>`;
+      } else {
+        chatLog.innerHTML += `<div class="chat-msg"><b>AI:</b> ${marked.parse(reply)}</div>`;
+      }
+      
     } catch(err){
-      chatLog.innerHTML += `<div style="color:red"><b>AI:</b> Lỗi kết nối</div>`;
+      loadingDiv.remove();
+      console.error('Fetch error:', err);
+      chatLog.innerHTML += `<div class="chat-msg error-msg"><b>AI:</b> Lỗi kết nối: ${err.message}</div>`;
     }
+    
     chatLog.scrollTop = chatLog.scrollHeight;
+  }
+
+  chatSend.addEventListener("click", sendMessage);
+  chatInput.addEventListener("keypress", (e)=>{
+    if(e.key === "Enter") sendMessage();
   });
 
 });
 </script>
+</body>
+</html>
