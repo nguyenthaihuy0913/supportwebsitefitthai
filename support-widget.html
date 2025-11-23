@@ -128,11 +128,15 @@ document.addEventListener("DOMContentLoaded", function() {
 
     try{
       const res = await fetch("https://weathered-meadow-c4bc.thaihuyxbox.workers.dev/", {
-        method: "POST",
-        headers: {"Content-Type":"application/json"},
-        body: JSON.stringify({messages:[{role:"user", content:msg}]})
-      });
-      const data = await res.json();
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+      model: "mistral-7b-instruct",
+      messages: [{ role: "user", content: msg }]
+    })
+  });
+
+const data = await res.json();
       const reply = data.choices?.[0]?.message?.content || "Không nhận được phản hồi";
       chatLog.innerHTML += `<div><b>AI:</b> ${marked.parse(reply)}</div>`;
     } catch(err){
